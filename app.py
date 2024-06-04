@@ -5,7 +5,6 @@ import numpy as np
 
 from custom_part import CustomPart
 from enemy import Enemy
-from maptree import MapTree
 from object import Object, Wall
 from simulation import run_simulation
 
@@ -17,30 +16,6 @@ app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key')
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
-
-
-@app.route('/map', methods=['GET', 'POST'])
-def map():
-    if 'object1' not in session:
-        # セッションにオブジェクトがない場合は新規作成
-        session['object1'] = Object(1.5, 0.5, 0.98, 1.0, 15.0).map()
-
-    if 'map_tree' in session:
-        map_tree = MapTree.from_map(session['map_tree'])
-    else:
-        map_tree = MapTree.create_map_tree()
-        session['map'] = map_tree.map()
-
-    if request.method == 'POST':
-        next_node_id = request.get_json()['next_node_id']
-        map_tree.set_current_node(next_node_id)
-        session['map_tree'] = map_tree.map()
-        session['enemy'] = Enemy.get_random_enemy((map_tree.current_step+1) // 2).map()
-
-        return redirect(url_for('simulation'))
-
-    return render_template('map.html',
-                           map_tree=map_tree.map())
 
 
 @app.route('/simulation', methods=['GET', 'POST'])
@@ -62,20 +37,21 @@ def simulation():
         "time_step": 0.05,
         "decay": 0.99
     }
-    if 'object1' in session:
-        try:
-            object1 = Object(**session['object1'])
-        except TypeError:
-            return redirect(url_for('reset'))
-    else:
-        return redirect(url_for('reset'))
-    if 'enemy' in session:
-        try:
-            enemy = Enemy.from_map(session['enemy'])
-            object2 = enemy.obj
-        except TypeError:
-            return redirect(url_for('reset'))
-    else:
+    if 'object1' not in session:
+        # セッションにオブジェクトがない場合は新規作成
+        session['object1'] = Object(1.5, 0.5, 0.98, 1.0, 15.0).map()
+    try:
+        object1 = Object(**session['object1'])
+    except TypeError:
+        return redirect(url_for('/reset'))
+
+    if 'enemy' not in session:
+        # セッションにEnemyがない場合は新規作成
+        session['enemy'] = Enemy.get_random_enemy(1).map()
+    try:
+        enemy = Enemy.from_map(session['enemy'])
+        object2 = enemy.obj
+    except TypeError:
         return redirect(url_for('reset'))
 
     scale = 50  # 位置のスケーリングファクター（ピクセル変換用）
@@ -202,9 +178,8 @@ def reward():
         # シミュレーション画面にリダイレクト
         return redirect(url_for('simulation'))
 
-
 @app.route('/reset')
-def clear_session():
+def reset():
     session.clear()
     return redirect(url_for('index'))
 

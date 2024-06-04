@@ -65,7 +65,7 @@
           <input type="hidden" id="reward_3_id" value="{{ reward_3_id }}">
           <h5 class="card-title">{{ reward_3.title }}</h5>
           <p class="card-text">{{ reward_3.text }}</p>
-          <a href="/map" class="btn btn-primary mt-auto">Select</a>
+          <a href="/simulation" class="btn btn-primary mt-auto">Select</a>
         </div>
       </div>
     </div>
@@ -89,7 +89,7 @@
       .then(response => {
         if (response.ok) {
           // レスポンスがOKの場合、マップ画面にリダイレクト
-          window.location.href = '/map';
+          window.location.href = '/simulation';
         } else {
           console.error('Error:', response.statusText);
         }
