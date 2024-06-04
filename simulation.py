@@ -27,6 +27,8 @@ def run_simulation(object1, object2, pos1, pos2, vel1, vel2, simulation_time, ti
     violent = 0.08 #ぶつかり合いの激しさ
     natural_damping = 1  # 回転の自然減衰 毎秒
     wall_damping = 0.75 # 壁衝突での減衰
+    rps1_timeline[0] = rps1
+    rps2_timeline[0] = rps2
 
     for t in times:
         positions1.append(pos1.copy())
