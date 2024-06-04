@@ -113,8 +113,8 @@
             width: 1px;
             height: 1px;
             background: rgba(255, 255, 0, 0.0);
-            top: {{ collision_point[1][1] * scale + (diameter1 + diameter2) / 2 / 2 }}px;
-            left: {{ collision_point[1][0] * scale + (diameter1 + diameter2) / 2 / 2  }}px;
+            top: {{ collision_point[1][1] * scale }}px;
+            left: {{ collision_point[1][0] * scale }}px;
             animation: spark 1s;
             animation-fill-mode: forwards;
             animation-delay: {{ collision_point[0] }}s;
