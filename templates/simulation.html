@@ -151,13 +151,11 @@
         }
 
         @keyframes rps1 {
-          0% {width: 100%;}
           {% for t, rps in rps1_timeline.items() %}
             {{ t / duration * 100 }}% {width: {{ rps / 40 * 100 }}%;}
           {% endfor %}
         }
         @keyframes rps2 {
-          0% {width: 100%;}
           {% for t, rps in rps2_timeline.items() %}
             {{ t / duration * 100 }}% {width: {{ rps / 40 * 100 }}%;}
           {% endfor %}
