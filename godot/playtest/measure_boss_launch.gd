@@ -73,7 +73,7 @@ func _table(boss: EnemyData, count: int, policy: LaunchPolicy.Kind,
 				var r6 := _resolve(b, speed, SpinnerStats.default_player(), policy, i, 6.0)
 				if r6["win"]:
 					win6 += 1
-				# ダメージ割合は無敵6秒側(GHOSTが刺さる状況)のボスの内訳を積む。
+				# ダメージ割合はすり抜け6秒側(GHOSTが刺さる状況)のボスの内訳を積む。
 				drain += r6["drain"]
 				wall += r6["wall"]
 				decay += r6["decay"]

@@ -86,8 +86,8 @@ var rps: float = 0.0
 ## 決着後に色を落とすためのフラグ。
 var defeated: bool = false
 
-## ゴースト(無敵)中か。真の間、本体を半透明シマーで描いて「敵をすり抜け中」を示す。
-## 見た目だけで、当たり判定はBattleResolverが無敵時間として別に処理する。
+## ゴースト(すり抜け)中か。真の間、本体を半透明シマーで描いて「敵をすり抜け中」を示す。
+## 見た目だけで、当たり判定はBattleResolverがすり抜け窓として別に処理する。
 var _ghosting: bool = false
 
 ## パーティクルの流れの位相に使う経過時刻。_processで進める。
@@ -134,7 +134,7 @@ func aura_ratio() -> float:
 	return 0.0 if defeated else tail_ratio()
 
 
-## ゴースト(無敵)中の表示を切り替える。再生側(Battle)が無敵時間の内外で呼ぶ。
+## ゴースト(すり抜け)中の表示を切り替える。再生側(Battle)がすり抜け窓の内外で呼ぶ。
 ## オフに戻すときは実体化(modulateを白へ)して、以後_processが触らないようにする。
 func set_ghosting(on: bool) -> void:
 	if _ghosting == on:

@@ -19,7 +19,7 @@ func run(check: Callable) -> void:
 	_test_outcome(check)
 	_test_multi_enemy(check)
 	_test_dead_ignores_walls(check)
-	_test_ghost_disables_early_collision(check)
+	_test_ghost_hit_and_run(check)
 	_test_relative_speed_drain(check)
 
 
@@ -37,6 +37,15 @@ func _request() -> BattleRequest:
 	var r := BattleRequest.new()
 	r.player = BattleRequest.Launch.new(_stats(1.5, 0.5, 15.0), Vector2(2, 8), Vector2(6, -6))
 	r.enemies = [BattleRequest.Launch.new(_stats(1.0, 0.5, 15.0), Vector2(8, 2), Vector2(-3, 4))]
+	return r
+
+
+## ゴーストテスト用: 中央近くの正面衝突。弾け返ってもすり鉢の傾斜が中央へ
+## 押し戻すので、短い間隔で何度も再衝突する(窓内の衝突消しを観測できる)。
+func _ghost_request() -> BattleRequest:
+	var r := BattleRequest.new()
+	r.player = BattleRequest.Launch.new(_stats(1.5, 0.5, 15.0), Vector2(4.0, 5.0), Vector2(3, 0))
+	r.enemies = [BattleRequest.Launch.new(_stats(1.0, 0.5, 15.0), Vector2(6.0, 5.0), Vector2(-3, 0))]
 	return r
 
 
@@ -387,29 +396,81 @@ func _test_dead_ignores_walls(check: Callable) -> void:
 	)
 
 
-## ゴーストの無敵時間。開始からghost_durationの間はプレイヤーと敵の衝突が消える。
-## 壁・障害物・敵同士には効かないので、ここではプレイヤー対敵1体の衝突だけを見る。
-func _test_ghost_disables_early_collision(check: Callable) -> void:
-	# 無敵なし: この初期条件は序盤で必ず当たる(_test_frames_and_timeと同じ配置)。
-	var base := BattleResolver.resolve(_request())
-	check.call(base.impacts.size() > 0, "ゴースト: 無敵なしなら衝突が起きる (%d回)" % base.impacts.size())
-	var window := 3.0
+## ゴーストはヒット&ラン: 最初の衝突は通り、その直後からghost_duration秒だけ
+## プレイヤーと敵の衝突が消える(開始直後を無敵にする旧仕様は自分の初撃まで
+## 消していた)。壁・障害物・敵同士には効かない。
+func _test_ghost_hit_and_run(check: Callable) -> void:
+	# ゴーストなしの基準。中央近くの正面衝突はすり鉢の傾斜が押し戻すので
+	# 短い間隔で何度も再衝突する。窓内に基準の衝突がなければテストが
+	# 何も守らないので前提ごと固定する。
+	var base := BattleResolver.resolve(_ghost_request())
 	check.call(
-		base.impacts[0].time < window,
-		"ゴースト: 無敵なしの初弾は無敵時間より前に来る (%.3f < %.1f)" % [base.impacts[0].time, window]
+		base.impacts.size() >= 2,
+		"ゴースト: ゴーストなしの基準は2回以上当たる (%d回)" % base.impacts.size()
+	)
+	var t0 := base.impacts[0].time
+	var window := 3.0
+	var base_inside := 0
+	for impact in base.impacts:
+		if impact.time > t0 + EPS and impact.time < t0 + window - EPS:
+			base_inside += 1
+	check.call(
+		base_inside > 0,
+		"ゴースト: 基準は初撃後の窓内にも衝突がある (%d回)" % base_inside
 	)
 
-	# 無敵あり: 開始からwindow秒はプレイヤーと敵が当たらない。
-	var g := _request()
+	var g := _ghost_request()
 	g.ghost_duration = window
 	var ghosted := BattleResolver.resolve(g)
-	var early := 0
-	for impact in ghosted.impacts:
-		if impact.time < window:
-			early += 1
+
+	# 初撃は必ず通り、時刻も基準と一致する(窓が開くのは初撃の後だから)。
+	check.call(ghosted.impacts.size() >= 1, "ゴースト: 初撃は通る")
 	check.call(
-		early == 0,
-		"ゴースト: 無敵時間中はプレイヤーと敵の衝突が記録されない (%d回)" % early
+		absf(ghosted.impacts[0].time - t0) < EPS,
+		"ゴースト: 初撃の時刻は基準と同じ (%.3f / %.3f)" % [ghosted.impacts[0].time, t0]
+	)
+
+	# 初撃の直後からwindow秒はプレイヤーと敵の衝突が消える。
+	var inside := 0
+	for impact in ghosted.impacts:
+		if impact.time > t0 + EPS and impact.time < t0 + window - EPS:
+			inside += 1
+	check.call(inside == 0, "ゴースト: 初撃後の窓内は衝突が消える (%d回)" % inside)
+
+	# 窓の開始時刻は初撃の時刻としてResultへ記録され、dict往復でも保たれる。
+	check.call(
+		absf(ghosted.ghost_start - t0) < EPS,
+		"ゴースト: ghost_start=初撃時刻 (%.3f)" % ghosted.ghost_start
+	)
+	check.call(
+		absf(BattleResult.from_dict(ghosted.to_dict()).ghost_start - ghosted.ghost_start) < EPS,
+		"ゴースト: ghost_startがdict往復で保たれる"
+	)
+	check.call(
+		base.ghost_start < 0.0,
+		"ゴースト: 窓が開かなければghost_start=-1 (%.1f)" % base.ghost_start
+	)
+	var legacy := ghosted.to_dict()
+	legacy.erase("ghost_start")
+	check.call(
+		BattleResult.from_dict(legacy).ghost_start < 0.0,
+		"ゴースト: ghost_startのない旧dictは-1で読める"
+	)
+
+	# 窓判定の純関数境界。窓が開く前(INF)・開いた当のステップ・窓内・窓明け・duration=0。
+	check.call(
+		not BattleResolver.ghost_blocks(0.0, INF, 2.0), "ゴースト: 窓が開く前は塞がない"
+	)
+	check.call(
+		not BattleResolver.ghost_blocks(1.0, 1.0, 2.0),
+		"ゴースト: 窓を開いたステップ自身は塞がない"
+	)
+	check.call(BattleResolver.ghost_blocks(1.5, 1.0, 2.0), "ゴースト: 窓内は塞ぐ")
+	check.call(
+		not BattleResolver.ghost_blocks(3.0, 1.0, 2.0), "ゴースト: 窓明けは塞がない"
+	)
+	check.call(
+		not BattleResolver.ghost_blocks(1.5, 1.0, 0.0), "ゴースト: duration=0は塞がない"
 	)
 
 

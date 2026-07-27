@@ -1,12 +1,14 @@
 extends SceneTree
 
-## GHOSTがボスに刺さる根本原因＝「無敵中に敵が自滅する」を定量化する診断。
+## GHOSTがボスに刺さる根本原因＝「すり抜け中に敵が自滅する」を定量化する診断。
+## (ヒット&ラン化以降、すり抜け窓は開始直後ではなく最初の衝突の直後から開く。
+## この診断の見方自体は変わらない。)
 ##
-## 無敵(ghost)秒数を変えて、敵(特にボスLv5)が **どう死ぬか** を death_cause で分解する:
+## すり抜け(ghost)秒数を変えて、敵(特にボスLv5)が **どう死ぬか** を death_cause で分解する:
 ##  - drain: プレイヤーの削り(コマ同士の衝突)で死ぬ＝正当な撃破
 ##  - decay: 自然回転減衰で勝手に死ぬ＝自滅
 ##  - wall : 壁でのrps喪失で死ぬ＝自滅
-## 無敵を伸ばすほど「自滅(decay+wall)」比率が上がるなら、GHOSTは敵の自滅を
+## すり抜けを伸ばすほど「自滅(decay+wall)」比率が上がるなら、GHOSTは敵の自滅を
 ## 安全に待つ札。ここを下げる調整の前後で比較する。
 ##
 ##   godot --headless --path godot --script res://playtest/measure_ghost.gd -- [--count=1500] [--policy=intercept]
@@ -28,14 +30,14 @@ func _init() -> void:
 	if not is_equal_approx(enemy_decay, 1.0):
 		print("# 敵spin_decay=%.2f（自滅しにくく調整）" % enemy_decay)
 
-	print("# 無敵秒数別: 敵の死因分解 (発射=%s, count=%d/セル)" % [LaunchPolicy.NAMES[policy], count])
+	print("# すり抜け秒数別: 敵の死因分解 (発射=%s, count=%d/セル)" % [LaunchPolicy.NAMES[policy], count])
 	print("# 素の初期性能。勝率と、プレイヤー勝ち(敵敗北)の内訳を death_cause で分ける。")
-	print("# 自滅=decay+wall。無敵を伸ばして自滅比率が上がる＝GHOSTが刺さる余地。")
+	print("# 自滅=decay+wall。すり抜けを伸ばして自滅比率が上がる＝GHOSTが刺さる余地。")
 
 	for level in LEVELS:
 		var pool := EnemyRoster.of_level(level)
 		print("\n## 敵レベル %d" % level)
-		print("| 無敵s | 勝率 | 敵敗北のうち drain(撃破) / decay+wall(自滅) |")
+		print("| すり抜けs | 勝率 | 敵敗北のうち drain(撃破) / decay+wall(自滅) |")
 		print("|---|---|---|")
 		for ghost in GHOSTS:
 			var wins := 0

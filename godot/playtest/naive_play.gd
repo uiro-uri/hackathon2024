@@ -131,7 +131,7 @@ func _reveal(state: Dictionary, tree: MapTree, bseed: int) -> void:
 		state["stats"]["mass"], state["stats"]["radius"], state["stats"]["rps"],
 		state["stats"]["friction"], state["stats"]["restitution"],
 		field.inradius() - float(state["stats"]["radius"]) - 0.5])
-	print("ゴースト無敵: %.1fs" % CustomPartCatalog.total_ghost_seconds(_ids(state)))
+	print("ゴースト(初衝突後すり抜け): %.1fs" % CustomPartCatalog.total_ghost_seconds(_ids(state)))
 	var plans := _enemy_plans(node.enemies, field, bseed)
 	print("敵 %d体 (bseed=%d):" % [node.enemies.size(), bseed])
 	for i in node.enemies.size():
