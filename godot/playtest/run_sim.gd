@@ -77,7 +77,7 @@ static func play_one(
 		var node: MapTree.MapNode = tree.nodes[tree.current_coord]
 		var group := node.enemies
 		var field := node.field
-		# 取得済みのゴースト札から無敵時間を出して戦闘に渡す。Battle.build_requestと同じ。
+		# 取得済みのゴースト札からすり抜け時間を出して戦闘に渡す。Battle.build_requestと同じ。
 		var ghost_duration := CustomPartCatalog.total_ghost_seconds(parts)
 
 		# その段の戦闘。敗北しても残機がある限り、同じノードで再挑戦する

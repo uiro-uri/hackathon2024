@@ -23,8 +23,9 @@ enum Stat { MASS, RADIUS, FRICTION, RESTITUTION, RPS }
 ## STAT_MULTIPLY以外は非ステータス効果で、SpinnerStatsのどの値にも乗らない:
 ##  - SET_LIVES: コマの性能ではなくランの残機(GameState.continues_left)を触る。
 ##    適用はGameState.apply_partが担う（CustomPartは純ResourceのままGameStateを参照しない）。
-##  - GHOST: 開始直後の一定時間だけ敵との衝突を無効化する時間効果。無敵時間はBattleが
-##    戦闘へ渡す（CustomPartCatalog.total_ghost_seconds）。
+##  - GHOST: 最初の衝突の直後から一定時間だけ敵との衝突を無効化する時間効果
+##    (ヒット&ラン: 初撃は通り、直後の報復をすり抜けて離脱する)。すり抜け時間は
+##    BattleがCustomPartCatalog.total_ghost_secondsで戦闘へ渡す。
 ## MOMENTUM: 摩擦(速度減衰)と回転減衰率の両方を multiplier 倍にする「勢い維持」効果。
 ## 単一ステータス倍率では摩擦しか触れず戦績がほぼ0だったので、回転減衰にも効かせる。
 ## cap は spin_decay の下限(これ以上は減らさない=青天井/無限HP化を防ぐ)。
@@ -81,7 +82,7 @@ const _STAT_NAMES := {
 ## SET_LIVESで引き上げる残機。他の札では0（GameState.apply_partのmaxiが無害になる）。
 @export var lives: int = 0
 
-## ゴースト1枚あたりの無敵秒数。effectがGHOSTのときだけ意味を持つ。
+## ゴースト1枚あたりのすり抜け秒数(最初の衝突後に効く)。effectがGHOSTのときだけ意味を持つ。
 ## 合計時間(=枚数×これ)はCustomPartCatalog.total_ghost_secondsが出す。
 @export var ghost_seconds: float = 0.0
 
@@ -119,7 +120,8 @@ static func make_set_lives(
 	return part
 
 
-## ゴースト札を作る。ステータスは変えず、開始後seconds_秒だけ敵との衝突を消す。
+## ゴースト札を作る。ステータスは変えず、最初の衝突の直後からseconds_秒だけ
+## 敵との衝突を消す(ヒット&ラン)。
 static func make_ghost(
 	id_: int, title_key_: String, rarity_: Rarity, seconds_: float
 ) -> CustomPart:
@@ -188,7 +190,7 @@ func apply_to(stats: SpinnerStats) -> void:
 		stats.wall_keep = minf(stats.wall_keep + wall_keep_step, wall_keep_max)
 		return
 	# 非ステータスの札(残機・ゴースト)はコマの性能を一切いじらない。残機はGameState.
-	# apply_partが、ゴーストの無敵時間はBattleが処理する。
+	# apply_partが、ゴーストのすり抜け時間はBattleが処理する。
 	if effect != Effect.STAT_MULTIPLY:
 		return
 	var value := _read(stats) * multiplier
@@ -217,7 +219,7 @@ static func rare_stylebox() -> StyleBoxFlat:
 func describe() -> String:
 	if effect == Effect.SET_LIVES:
 		return tr("PART_EFFECT_SET_LIVES").format([lives])
-	# ゴーストは倍率を持たないので、無敵秒数を埋めた専用の説明を返す。
+	# ゴーストは倍率を持たないので、すり抜け秒数を埋めた専用の説明を返す。
 	if effect == Effect.GHOST:
 		return tr("PART_EFFECT_GHOST").format([_trim(ghost_seconds)])
 	# 勢い維持は摩擦と回転減衰の両方に効く。倍率を埋めた専用の説明を返す。

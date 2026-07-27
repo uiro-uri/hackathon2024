@@ -203,7 +203,7 @@ var _arena_base_scale: Vector2 = Vector2.ONE
 ## 決着を付けたコマ衝突の時刻。負なら演出しない(play()で決める)。
 var _decisive_time: float = -1.0
 
-## いまゴースト(無敵)中か。無敵時間の境目でプレイヤーの見た目とSEを切り替える。
+## いまゴースト(すり抜け)中か。窓の境目でプレイヤーの見た目とSEを切り替える。
 var _ghost_active: bool = false
 
 
@@ -512,7 +512,7 @@ func build_request(player_pos: Vector2, player_vel: Vector2) -> BattleRequest:
 	request.wall_damping = wall_damping
 	request.lose_threshold = lose_threshold
 	request.max_speed = max_speed
-	# 取得済みのゴースト札から無敵時間を決める。単体調整時は取得0で0秒になり従来どおり。
+	# 取得済みのゴースト札からすり抜け時間を決める。単体調整時は取得0で0秒になり従来どおり。
 	request.ghost_duration = CustomPartCatalog.total_ghost_seconds(GameState.acquired_part_ids)
 	return request
 
@@ -542,8 +542,8 @@ func play(result: BattleResult) -> void:
 		_enemy_bars[i].modulate.a = 1.0
 
 	_apply_frame(0.0)
-	# ゴースト(無敵)の見た目とSEをt=0の状態に合わせる。無敵ありなら開始SEが鳴り、
-	# コマがシマーで透け始める。無ければ何も起きない。
+	# ゴースト(すり抜け)の見た目とSEをt=0の状態に合わせる。窓が開くのは最初の衝突の
+	# 直後なので、t=0では常に不活性。開始SEは再生が窓に入った瞬間に鳴る。
 	_ghost_active = false
 	_update_ghost(0.0)
 	# 戦闘中ずっと鳴る回転音を鳴らし始める。周波数・振幅は毎フレーム rps で更新する。
@@ -568,10 +568,16 @@ func _physics_process(delta: float) -> void:
 		_finish()
 
 
-## ゴースト(無敵)の見た目とSEを、時刻tが無敵時間の内か外かに合わせる。
+## ゴースト(すり抜け)の見た目とSEを、時刻tが窓の内か外かに合わせる。
+## 窓はリゾルバが記録した「最初の衝突(ghost_start)の直後からghost_duration秒」。
+## 窓が開かなかった戦い(ghost_start<0)は常に不活性。
 ## 境目をまたいだ瞬間だけSEを鳴らし、コマのシマー表示を切り替える。
 func _update_ghost(t: float) -> void:
-	var active := t < _result.ghost_duration
+	var active := (
+		_result.ghost_start >= 0.0
+		and t > _result.ghost_start
+		and t < _result.ghost_start + _result.ghost_duration
+	)
 	if active == _ghost_active:
 		return
 	_ghost_active = active
@@ -690,8 +696,8 @@ func _finish() -> void:
 
 	# 最後のフレームをそのまま残す。補間の途中で止まると中途半端な絵になる。
 	_apply_frame(_result.finish_time)
-	# 万一まだ無敵中(=無敵時間より前に決着)でも、決着したら必ず実体化して終了SEを
-	# 鳴らす。通常は決着が無敵時間より後なので_physics_process側で既に解除済み。
+	# 万一まだすり抜け中(=窓が閉じる前に決着)でも、決着したら必ず実体化して終了SEを
+	# 鳴らす。通常は決着が窓明けより後なので_physics_process側で既に解除済み。
 	if _ghost_active:
 		_ghost_active = false
 		_player.set_ghosting(false)

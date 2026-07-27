@@ -64,7 +64,7 @@ static func play_one(
 	request.stage_shape = field.stage_shape
 	if overrides != null:
 		overrides.apply(request)
-	# ゴーストの無敵時間。取得済み札から算出した値をRunSimが渡す。
+	# ゴーストのすり抜け時間。取得済み札から算出した値をRunSimが渡す。
 	request.ghost_duration = ghost_duration
 
 	# Battle._spawn_enemy と同じ手順で、各敵の出現を index順に決める。

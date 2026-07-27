@@ -22,15 +22,15 @@ const MASS_MAX := CustomPartCatalog.MASS_CAP
 const RADIUS_MAX := CustomPartCatalog.RADIUS_CAP
 const RESTITUTION_MAX := CustomPartCatalog.RESTITUTION_CAP
 const RPS_MAX := CustomPartCatalog.RPS_CAP
-## 無敵時間の上端。ゴーストにはCAPが無い(重ねるほど線形に伸びる)ので、表示用に
+## すり抜け時間の上端。ゴーストにはCAPが無い(重ねるほど線形に伸びる)ので、表示用に
 ## ゴースト2枚(合計4秒)で満タンとしておく。
 const GHOST_MAX := 4.0
 
 
 ## 表示する行(上から順)。ラベルの翻訳キーと、バーの埋まり具合(0〜1)。
 ##
-## ghost_seconds はゴースト札で得た無敵時間の合計(枚数×1枚あたり秒)。取得している
-## (0より大きい)ときだけ末尾に無敵時間の行を足す。未取得なら出さない。値は
+## ghost_seconds はゴースト札で得たすり抜け時間の合計(枚数×1枚あたり秒)。取得して
+## いる(0より大きい)ときだけ末尾にすり抜け時間の行を足す。未取得なら出さない。値は
 ## CustomPartCatalog.total_ghost_seconds が出したものを Battle が渡す。
 static func rows(stats: SpinnerStats, ghost_seconds: float = 0.0) -> Array[Dictionary]:
 	var r: Array[Dictionary] = [
