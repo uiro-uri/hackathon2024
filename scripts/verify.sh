@@ -245,6 +245,8 @@ fi
 stage "6. Web描画 (Chromium, 横1280x720 と 縦SP)"
 
 SP_W="${SP_W:-390}"; SP_H="${SP_H:-844}"
+# 段階7で「クリック前後に画面が変わった」とみなす変化画素の下限(%)。
+SP_MOVE_MIN="${SP_MOVE_MIN:-3}"
 
 # チェック対象: "キー|ラベル|幅|高さ|出力png"
 web_specs=(
@@ -293,8 +295,10 @@ fi
 # --- 7. SP画面遷移描画 ------------------------------------------------------
 # 段階6のsp.pngは起動直後のTitleしか写らない。Map(ステージ選択)とBattle(戦闘)の
 # 縦画面レイアウトを人が目視できるよう、実ブラウザでTitle→Map→Battleと遷移させて
-# 各画面を撮る。canvas単色でない・起動・エラー0は自動判定するが、拡大や中央やや下の
-# 当否は残す sp_map.png / sp_battle.png を人が見て確かめる(既存の「画像を見る」方針)。
+# 各画面を撮る。canvas単色でない・起動・エラー0・遷移で画面が変わったことは自動判定するが、
+# 拡大や中央やや下の当否は残す sp_map.png / sp_battle.png を人が見て確かめる
+# (既存の「画像を見る」方針)。色数だけを見ていた頃は、Titleを押し損ねてTitleのままの
+# スクショが撮れていても緑になっていた。
 stage "7. SP画面遷移描画 (Map/Battle, 縦${SP_W}x${SP_H})"
 
 if [[ $QUICK -eq 1 ]]; then
@@ -318,7 +322,8 @@ else
   if [[ $sp_rc -ne 0 || -z "$out" ]]; then
     fail "SP画面遷移の確認を実行できなかった"
   else
-    IFS='|' read -r n_err map_colors battle_colors booted <<<"$(tail -1 <<<"$out")"
+    IFS='|' read -r n_err map_colors battle_colors booted map_moved battle_moved \
+      <<<"$(tail -1 <<<"$out")"
     [[ "$booted" == "1" ]] && ok "ブラウザでGodotが起動 (SP遷移)" || fail "ブラウザでGodotが起動しなかった (SP遷移)"
     [[ "$n_err" == "0" ]] && ok "JS/Godotエラーなし (SP遷移)" || fail "SP遷移中にエラー ${n_err}件"
     if [[ ! "$map_colors" =~ ^[0-9]+$ ]] || [[ "$map_colors" -lt 3 ]]; then
@@ -330,6 +335,18 @@ else
       fail "Battle(縦)が実質ブランク (色数 $battle_colors)"
     else
       ok "Battle(縦)描画OK (色数 $battle_colors) -> build/verify/sp_battle.png"
+    fi
+    # 色数だけでは「押せずにTitleのままのスクショ」を弾けない(実際それで緑になっていた)。
+    # クリック前後で画面が実際に変わったかを別に見る。
+    if [[ ! "$map_moved" =~ ^[0-9]+$ ]] || [[ "$map_moved" -lt "$SP_MOVE_MIN" ]]; then
+      fail "Title→Mapで画面が変わっていない (変化 ${map_moved}% < ${SP_MOVE_MIN}%)"
+    else
+      ok "Title→Map遷移OK (画面変化 ${map_moved}%)"
+    fi
+    if [[ ! "$battle_moved" =~ ^[0-9]+$ ]] || [[ "$battle_moved" -lt "$SP_MOVE_MIN" ]]; then
+      fail "Map→Battleで画面が変わっていない (変化 ${battle_moved}% < ${SP_MOVE_MIN}%)"
+    else
+      ok "Map→Battle遷移OK (画面変化 ${battle_moved}%)"
     fi
   fi
 fi

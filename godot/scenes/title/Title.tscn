@@ -39,7 +39,7 @@ layout_mode = 2
 
 [node name="GameTitle" type="Label" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 48
+theme_type_variation = &"Display"
 text = "TITLE_GAME_NAME"
 horizontal_alignment = 1
 
@@ -75,7 +75,6 @@ offset_right = 90.0
 offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_font_sizes/font_size = 16
 text = "TITLE_SOUND_TEST"
 
 [node name="VersionLabel" type="Label" parent="."]
@@ -90,6 +89,6 @@ offset_right = -8.0
 offset_bottom = -8.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"Caption"
 horizontal_alignment = 2
 vertical_alignment = 1

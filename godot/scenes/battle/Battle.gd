@@ -42,6 +42,8 @@ const BAR_BAND := 90.0
 ## バー帯とアリーナの隙間、およびメッセージ/バー行の高さ(px)。
 const BAND_GAP := 12.0
 const BAR_ROW_H := 60.0
+## メッセージ行の高さを文字サイズの何倍取るか。行送りぶんの余裕。
+const MESSAGE_LINE_H := 1.4
 
 ## ステージの傾斜の強さ。
 @export_range(0.0, 20.0, 0.1) var stage_strength: float = 4.9
@@ -287,7 +289,9 @@ func _recompute_layout() -> void:
 	_record_arena_base()
 
 	# メッセージはアリーナ幅に合わせ、アリーナの縦中央あたりへ。
-	_set_rect(_message, Rect2(top_left.x, top_left.y + arena_px * 0.4, arena_px, BAR_ROW_H))
+	# 高さは文字に合わせて取る(縦画面のSubtitleは48pxで、設計値の60pxに1行が収まらない)。
+	var message_h := maxf(BAR_ROW_H, FontScale.size_for(FontScale.SUBTITLE, true) * MESSAGE_LINE_H)
+	_set_rect(_message, Rect2(top_left.x, top_left.y + arena_px * 0.4, arena_px, message_h))
 	# バーはアリーナ直下、幅いっぱい。
 	_set_rect(_bars, Rect2(top_left.x, top_left.y + arena_px + BAND_GAP, arena_px, BAR_ROW_H))
 

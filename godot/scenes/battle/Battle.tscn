@@ -66,10 +66,11 @@ offset_left = 390.0
 offset_top = 300.0
 offset_right = 890.0
 offset_bottom = 360.0
-theme_override_font_sizes/font_size = 36
+theme_type_variation = &"Subtitle"
 text = "BATTLE_DRAG_TO_SHOOT"
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 2
 
 [node name="Bars" type="VBoxContainer" parent="UI"]
 offset_left = 390.0

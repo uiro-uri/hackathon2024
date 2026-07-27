@@ -25,10 +25,12 @@ theme_override_constants/separation = 24
 
 [node name="Heading" type="Label" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
+theme_type_variation = &"Subtitle"
 text = "REWARD_HEADING"
 horizontal_alignment = 1
 
-[node name="Cards" type="HBoxContainer" parent="CenterContainer/VBoxContainer"]
+[node name="Cards" type="GridContainer" parent="CenterContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 24
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 24
+columns = 3

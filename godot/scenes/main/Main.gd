@@ -22,11 +22,36 @@ var _rewards_remaining: int = 0
 ## 画面差し替えで消えないようにし、_swap_screenのたびに現在のGameStateへ追従させる。
 var _stat_panel: StatPanel
 
+## 全画面が共有する文字サイズのテーマ。実体は1つだけ持ち回し、画面の向きが変わったら
+## 中身を書き換える(Themeは書き換えるとchangedを出すので、使っている側は自動で組み直る)。
+## 貼り付けはFontScale.applyがやる。ScreenHolderがNode、BattleのルートがNode2D、
+## StatPanelがCanvasLayerで、テーマ継承がそこで切れるため、ウィンドウに貼るだけでは届かない。
+var _ui_theme := Theme.new()
+
+## 直前に判定した画面の向き。向きが変わったときだけテーマを書き換える
+## (size_changedはウィンドウのドラッグ中に毎フレーム級で飛ぶ)。
+var _portrait := false
+
 
 func _ready() -> void:
+	_portrait = ScreenLayout.is_portrait(get_viewport().get_visible_rect().size)
+	FontScale.fill_theme(_ui_theme, _portrait)
+	get_viewport().size_changed.connect(_on_viewport_resized)
+
 	_stat_panel = StatPanel.new()
 	add_child(_stat_panel)
+	FontScale.apply(_stat_panel, _ui_theme)
+
 	goto_title()
+
+
+## 画面の向きが変わったときだけ文字サイズを組み替える。
+func _on_viewport_resized() -> void:
+	var portrait := ScreenLayout.is_portrait(get_viewport().get_visible_rect().size)
+	if portrait == _portrait:
+		return
+	_portrait = portrait
+	FontScale.fill_theme(_ui_theme, portrait)
 
 
 func goto_title() -> void:
@@ -154,6 +179,8 @@ func _swap_screen(scene: PackedScene, show_stats: bool = true) -> Node:
 		_screen_holder.remove_child(child)
 		child.queue_free()
 	var screen := scene.instantiate()
+	# ツリーへ入れる前に貼る(入れてから貼ると最小サイズの計算が2度走る)。
+	FontScale.apply(screen, _ui_theme)
 	_screen_holder.add_child(screen)
 	if show_stats:
 		_stat_panel.refresh()

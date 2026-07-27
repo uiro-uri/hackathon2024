@@ -4,6 +4,10 @@ extends Control
 signal start_requested
 signal sound_test_requested
 
+## サウンドテストボタンの設計上の矩形(tscnのoffsetと一致、下中央アンカー基準)。
+## 縦画面ではここへ FontScale.chrome_scale を掛ける。
+const SOUND_TEST_RECT := Rect2(-90.0, -52.0, 180.0, 32.0)
+
 @onready var _streak_label: Label = $CenterContainer/VBoxContainer/StreakLabel
 @onready var _start_button: Button = $CenterContainer/VBoxContainer/StartButton
 @onready var _language_button: Button = $CenterContainer/VBoxContainer/LanguageButton
@@ -29,6 +33,22 @@ func _ready() -> void:
 	# レイアウト確定はreadyの後なので、resizedで追従しつつ初回はdeferで合わせる。
 	_disc_anchor.resized.connect(_reposition_disc)
 	_reposition_disc.call_deferred()
+
+	# 隅のボタンだけは器を offset で決め打ちしている。縦画面では文字が2倍になって
+	# 収まらないので、器も同じ倍率で広げる(中身が伸びる他の画面はコンテナ任せでよい)。
+	get_viewport().size_changed.connect(_resize_corner_button)
+	_resize_corner_button()
+
+
+## サウンドテストボタンの器を画面比に合わせる。横画面(設計比16:9)は設計値のまま。
+func _resize_corner_button() -> void:
+	var portrait := ScreenLayout.is_portrait(get_viewport().get_visible_rect().size)
+	var scale := FontScale.chrome_scale(portrait)
+	# 下端からの距離と幅だけを伸ばす(アンカーは下中央のまま)。
+	_sound_test_button.offset_left = SOUND_TEST_RECT.position.x * scale
+	_sound_test_button.offset_right = SOUND_TEST_RECT.end.x * scale
+	_sound_test_button.offset_top = SOUND_TEST_RECT.position.y * scale
+	_sound_test_button.offset_bottom = SOUND_TEST_RECT.end.y * scale
 
 
 ## PlayerPreview(Node2D)をDiscAnchor(Control)の中心へ載せる。Titleルートは

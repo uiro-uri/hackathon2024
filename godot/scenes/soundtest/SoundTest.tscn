@@ -29,7 +29,7 @@ theme_override_constants/separation = 16
 
 [node name="Title" type="Label" parent="Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 40
+theme_type_variation = &"Title"
 text = "SOUNDTEST_TITLE"
 horizontal_alignment = 1
 
