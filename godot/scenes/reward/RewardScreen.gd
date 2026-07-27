@@ -10,9 +10,20 @@ signal part_chosen(part: CustomPart)
 
 const CHOICE_COUNT := 3
 
-@onready var _cards: HBoxContainer = $CenterContainer/VBoxContainer/Cards
+## カード1枚の最小の大きさ(横画面)。縦画面では FontScale.chrome_scale 倍にして
+## 大きくなった文字に器を合わせる。
+const CARD_SIZE := Vector2(220, 260)
+
+@onready var _cards: GridContainer = $CenterContainer/VBoxContainer/Cards
 
 var _shine := 0.0
+
+
+func _ready() -> void:
+	# 縦画面では文字が最大2倍になり、3枚を横に並べると1280の幅に収まらない。
+	# 縦に積み替える。横画面(設計比16:9)では3列のまま何も変えない。
+	get_viewport().size_changed.connect(_recompute_layout)
+	_recompute_layout()
 
 
 func setup(parts: Array[CustomPart]) -> void:
@@ -24,11 +35,21 @@ func setup(parts: Array[CustomPart]) -> void:
 		_cards.add_child(_build_card(part))
 
 
+## 画面比に応じて列数とカードの大きさを決める。横画面はシーン既定(3列)のまま。
+func _recompute_layout() -> void:
+	var portrait := ScreenLayout.is_portrait(get_viewport().get_visible_rect().size)
+	_cards.columns = 1 if portrait else CHOICE_COUNT
+	var size := CARD_SIZE * FontScale.chrome_scale(portrait)
+	for card in _cards.get_children():
+		(card as Control).custom_minimum_size = size
+
+
 func _build_card(part: CustomPart) -> Control:
 	var is_rare := part.rarity == CustomPart.Rarity.RARE
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(220, 260)
+	var portrait := ScreenLayout.is_portrait(get_viewport().get_visible_rect().size)
+	panel.custom_minimum_size = CARD_SIZE * FontScale.chrome_scale(portrait)
 	if is_rare:
 		panel.add_theme_stylebox_override("panel", CustomPart.rare_stylebox())
 
@@ -38,7 +59,7 @@ func _build_card(part: CustomPart) -> Control:
 
 	var title := Label.new()
 	title.text = part.title_key
-	title.add_theme_font_size_override("font_size", 20)
+	title.theme_type_variation = FontScale.BODY
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(title)

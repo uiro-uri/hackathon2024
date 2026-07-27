@@ -21,7 +21,7 @@ offset_top = 12.0
 offset_right = 200.0
 offset_bottom = 44.0
 grow_horizontal = 2
-theme_override_font_sizes/font_size = 24
+theme_type_variation = &"Heading"
 text = "MAP_CHOOSE_NEXT"
 horizontal_alignment = 1
 
@@ -39,8 +39,9 @@ theme_override_constants/separation = 10
 
 [node name="Heading" type="Label" parent="AcquiredPanel/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_type_variation = &"Body"
 text = "MAP_ACQUIRED_HEADING"
+autowrap_mode = 2
 
 [node name="Scroll" type="ScrollContainer" parent="AcquiredPanel/VBox"]
 layout_mode = 2

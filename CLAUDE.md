@@ -60,7 +60,7 @@ stage of `scripts/verify.sh` has a substantive pass criterion:
 | 4. export ×3 | exit code, a `.pck` size floor, **and** that the Web preset's `variant/thread_support` is off — enabling it makes Godot demand SharedArrayBuffer, which needs COOP/COEP headers that GitHub Pages cannot serve, so the game would break in production only |
 | 5. native render | launch the **exported** Linux binary, capture via `--write-movie`, assert non-blank |
 | 6. web render | Chromium on the served export, at both landscape (1280×720) and portrait (SP = phone in a mobile browser; no dedicated build): Godot booted, no JS errors, canvas non-blank |
-| 7. SP screen flow | portrait Chromium navigates Title→Map→Battle; each screen booted, no errors, canvas non-blank — catches the responsive Map/Battle layout breaking |
+| 7. SP screen flow | portrait Chromium navigates Title→Map→Battle; each screen booted, no errors, canvas non-blank, **and the screen actually changed** after each click — catches the responsive Map/Battle layout breaking |
 
 Stage 5 deliberately runs `build/linux/slay-the-spinner.x86_64`, not `--path godot`. Running the
 project only proves the editor can play it from source; a broken binary/pck pairing would sail
@@ -72,12 +72,34 @@ The SP portrait size defaults to 390×844 (`SP_W`/`SP_H`); the portrait vertical
 screenshot navigator defaults to 0.7 (`SP_BIAS`) and must match the screens' `portrait_vertical_bias`
 so the harness clicks land on the (moved) map node.
 
+Stage 7's Title click is found by **scanning the rendered pixels** for the button, not by a computed
+offset. The offset it used before ("screen centre + 19px") silently drifted as the Title's contents
+changed: the click landed on nothing, `sp_map.png` was really a screenshot of Title, and the stage
+still went green because it only counted colours. That is why the stage now also asserts the screen
+changed between clicks (`SP_MOVE_MIN`, default 3%). The map node click is still computed — it is
+geometry, and `verify_sp_screens.py` mirrors `MapScreen.gd`'s `PANEL_RIGHT` / `TITLE_BOTTOM` /
+`EDGE_MARGIN`, so **changing those constants means changing both files**.
+
 Map and Battle lay out responsively **only in portrait** (taller than 16:9): content scales up to
 fill the width and sits slightly below center, driven by pure helpers in
 `scripts/core/screen_layout.gd` (headless-tested in `test_screen_layout.gd`). Landscape (16:9) is
 left exactly as the scene defines it — `ScreenLayout.is_portrait` gates the whole thing. The
 per-screen `portrait_fill` / `portrait_vertical_bias` are `@export`s tuned by feel; if you change a
 default, update `SP_BIAS` in `verify_sp_screens.py` to match.
+
+**Font sizes have one source: `scripts/core/font_scale.gd` (`FontScale`).** Scenes never write a
+size — they name a role via `theme_type_variation = &"Heading"`, and `FontScale.build_theme()` turns
+the role table into a `Theme`. Because a phone in portrait renders the 1280-wide canvas at ~0.3×,
+each role carries a separate portrait size, scaled hardest at the small end (Caption 2.0× down to
+Display 1.33×) so headings don't outgrow the 1280 width. `FontScale.chrome_scale()` is the matching
+multiplier for containers pinned by offsets (reward cards, the acquired panel, the stat HUD, corner
+buttons) — enlarge text without it and the text spills out of its box.
+
+Godot's theme inheritance only walks Control and Window nodes, so `get_window().theme` reaches
+**nothing** here: `ScreenHolder` is a `Node`, `Battle`'s root is a `Node2D`, `StatPanel` is a
+`CanvasLayer`. `FontScale.apply()` walks down and assigns to the topmost Control on each branch;
+`Main` calls it per screen. A missed assignment is silent — text just stays 16px — which is what
+`apply()` returning a count, and the SP screenshots, are there to catch.
 
 Tests live in `godot/tests/`; `run_tests.gd` is the entry point. When adding a test suite, add its
 name to `EXPECTED_TESTS` — the runner cross-checks that every suite ran to completion, because a

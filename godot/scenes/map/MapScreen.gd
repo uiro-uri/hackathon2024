@@ -64,9 +64,16 @@ const NO_HOVER := Vector2i(-1, -1)
 @export_range(0.0, 1.0, 0.05) var portrait_vertical_bias: float = 0.7
 
 ## 縦画面で、左の取得済みパネル(tscnで右端316)とタイトルを避けるための境界。
+## この3つは scripts/verify_sp_screens.py が同じ値を持っている(段階7のクリック位置を
+## 同じ式で出すため)。変えるならあちらも同時に変えること。
 const PANEL_RIGHT := 316.0
 const EDGE_MARGIN := 16.0
 const TITLE_BOTTOM := 52.0
+
+## 取得済みパネルの設計上の上端/下端(tscnと一致)。縦画面ではここへ倍率を掛けて
+## 縦にだけ伸ばす。横は PANEL_RIGHT を動かせないので触らない。
+const PANEL_TOP := 210.0
+const PANEL_BOTTOM := 680.0
 
 ## レイアウトの実効値。既定は設計値(横画面)。縦画面では_recompute_layoutが差し替える。
 var _origin := ORIGIN
@@ -319,6 +326,7 @@ func _draw_encounter_info(center: Vector2, radius: float, node: MapTree.MapNode,
 ## 拡大し、横は領域中央、縦は中央やや下へ寄せる。
 func _recompute_layout() -> void:
 	var visible := get_viewport().get_visible_rect().size
+	_stretch_acquired_panel(ScreenLayout.is_portrait(visible))
 	if not ScreenLayout.is_portrait(visible):
 		_origin = ORIGIN
 		_cell = CELL
@@ -348,6 +356,21 @@ func _recompute_layout() -> void:
 	var half_span := (MapTree.COLUMN_COUNT - 1) * 0.5 * _cell.x
 	_origin = Vector2(top_left.x + _node_radius + half_span, top_left.y + _node_radius)
 	_reposition_buttons()
+
+
+## 取得済みパネルを縦画面で縦方向にだけ伸ばす。
+##
+## 横(PANEL_RIGHT=316)は動かさない。地図の領域はそこを避けて決まっており、同じ計算を
+## scripts/verify_sp_screens.py が持っている(そちらが段階7のクリック位置を出す)ので、
+## 横を動かすと検証のクリックが黙って外れる。
+##
+## 縦だけ伸ばすのは、縦画面では文字が2倍になり StatPanel(左上、自動高)が下へ伸びて
+## 設計値 y=210 のこのパネルと重なるため。上端も下端も同じ倍率でずらせば両方避けられる。
+func _stretch_acquired_panel(portrait: bool) -> void:
+	var panel := $AcquiredPanel as Control
+	var scale := FontScale.chrome_scale(portrait)
+	panel.offset_top = PANEL_TOP * scale
+	panel.offset_bottom = PANEL_BOTTOM * scale
 
 
 ## 既存ボタンの大きさと位置を今のレイアウト値で貼り直す。入場フェードは巻き戻さない。

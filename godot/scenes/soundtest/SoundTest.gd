@@ -49,7 +49,7 @@ func _build_list() -> void:
 func _add_heading(text_key: String) -> void:
 	var heading := Label.new()
 	heading.text = text_key
-	heading.add_theme_font_size_override("font_size", 24)
+	heading.theme_type_variation = FontScale.HEADING
 	_list.add_child(heading)
 
 

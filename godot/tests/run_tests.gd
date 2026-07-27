@@ -12,7 +12,7 @@ var _failures: Array[String] = []
 var _completed: Array[String] = []
 
 const EXPECTED_TESTS: Array[String] = [
-	"translations", "gamestate", "font", "physics", "map", "mapglow", "enemies", "parts", "acquired", "acquiredlist", "spawn", "battle", "fields", "disc", "discgradient", "spinaura", "wobble", "finishfocus", "contrast", "playtest", "screenlayout", "game_clear", "fadeout", "rainbow", "ghostvisual", "audio", "soundtest", "statreadout", "launchspeed", "gameversion"
+	"translations", "gamestate", "font", "physics", "map", "mapglow", "enemies", "parts", "acquired", "acquiredlist", "spawn", "battle", "fields", "disc", "discgradient", "spinaura", "wobble", "finishfocus", "contrast", "playtest", "screenlayout", "fontscale", "game_clear", "fadeout", "rainbow", "ghostvisual", "audio", "soundtest", "statreadout", "launchspeed", "gameversion"
 ]
 
 
@@ -97,6 +97,9 @@ func _init() -> void:
 
 	print("== screenlayout ==")
 	_test_screen_layout()
+
+	print("== fontscale ==")
+	_test_font_scale()
 
 	print("== game_clear ==")
 	_test_game_clear()
@@ -406,6 +409,12 @@ func _test_screen_layout() -> void:
 	var suite = load("res://tests/test_screen_layout.gd").new()
 	suite.run(_check)
 	_done("screenlayout")
+
+
+func _test_font_scale() -> void:
+	var suite = load("res://tests/test_font_scale.gd").new()
+	suite.run(_check)
+	_done("fontscale")
 
 
 func _test_enemies() -> void:

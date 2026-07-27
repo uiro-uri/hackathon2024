@@ -32,12 +32,33 @@ var _prev_fractions: Dictionary = {}
 ## その場で書き換える(実体は同じ)ので、ラン中の変化は差分として拾える。
 var _run_stats: SpinnerStats = null
 
+## 器(バー・残機アイコン)に掛ける倍率。縦画面で文字が大きくなるぶん器も広げる。
+## 出所は FontScale.chrome_scale。横画面では 1.0。
+var _chrome_scale := 1.0
+
 
 func _ready() -> void:
 	# 各画面(Battleの$UIは既定layer)より確実に手前へ。
 	layer = 128
 	_build_shell()
 	visible = false
+	# 縦画面では文字が2倍になる。バーと残機アイコンだけ設計値のままだと痩せて
+	# 見えるので、器も同じ倍率で持ち上げる。横画面(設計比16:9)では1.0倍＝変化なし。
+	get_viewport().size_changed.connect(_recompute_scale)
+	_recompute_scale()
+
+
+## 画面比に応じて器の倍率を決め直す。行はrefresh()が積み直すので、ここでは
+## 倍率を覚えておくだけでよい(向きが変わった直後の1回は積み直す)。
+func _recompute_scale() -> void:
+	var scale := FontScale.chrome_scale(
+		ScreenLayout.is_portrait(get_viewport().get_visible_rect().size)
+	)
+	if is_equal_approx(scale, _chrome_scale):
+		return
+	_chrome_scale = scale
+	if visible:
+		refresh()
 
 
 ## 器(パネル・余白・グリッド)を一度だけ作る。中身の行は refresh() が積み直す。
@@ -114,7 +135,7 @@ func _name_label(key: String) -> Label:
 ## 見た目はHPバーに寄せ、塗りはプレイヤー色。
 func _bar(fraction: float) -> ProgressBar:
 	var bar := ProgressBar.new()
-	bar.custom_minimum_size = STAT_BAR_SIZE
+	bar.custom_minimum_size = STAT_BAR_SIZE * _chrome_scale
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.show_percentage = false
@@ -146,8 +167,9 @@ func _life_pips(count: int) -> HBoxContainer:
 	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for i in maxi(0, count):
 		var pip := Panel.new()
-		pip.custom_minimum_size = Vector2(LIFE_PIP_DIAMETER, LIFE_PIP_DIAMETER)
-		pip.add_theme_stylebox_override("panel", _circle_style(Palette.PLAYER))
+		var d := LIFE_PIP_DIAMETER * _chrome_scale
+		pip.custom_minimum_size = Vector2(d, d)
+		pip.add_theme_stylebox_override("panel", _circle_style(Palette.PLAYER, d))
 		box.add_child(pip)
 	return box
 
@@ -176,8 +198,10 @@ func _fill_style(color: Color) -> StyleBoxFlat:
 	return s
 
 
-func _circle_style(color: Color) -> StyleBoxFlat:
+## 直径ぶんの角丸を付けて円にする。縦画面では直径が伸びるので、角丸も一緒に伸ばさないと
+## 円ではなく角丸四角になってしまう。
+func _circle_style(color: Color, diameter: float) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = color
-	s.set_corner_radius_all(int(LIFE_PIP_DIAMETER / 2.0))
+	s.set_corner_radius_all(int(diameter / 2.0))
 	return s

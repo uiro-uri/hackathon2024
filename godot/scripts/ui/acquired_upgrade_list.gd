@@ -61,7 +61,7 @@ static func build_row(part: CustomPart, count: int, show_description := true) ->
 		)
 	else:
 		title.text = part.title_key
-	title.add_theme_font_size_override("font_size", 16)
+	title.theme_type_variation = FontScale.CAPTION
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(title)
 	labels.append(title)
