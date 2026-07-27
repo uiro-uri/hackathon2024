@@ -94,7 +94,7 @@ func refresh() -> void:
 		_grid.remove_child(child)
 		child.queue_free()
 
-	# ゴースト札を取得していれば無敵時間の行も付く(StatReadout側で判断)。
+	# ゴースト札を取得していればすり抜け時間の行も付く(StatReadout側で判断)。
 	var ghost_seconds := CustomPartCatalog.total_ghost_seconds(GameState.acquired_part_ids)
 	var current: Dictionary = {}
 	for row in StatReadout.rows(GameState.player_stats, ghost_seconds):

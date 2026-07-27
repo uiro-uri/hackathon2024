@@ -59,8 +59,8 @@ const RAGE_WALL_KEEP_MAX := 0.5
 ## 0.4なら自然減衰は最大でも通常の40%まで（無限に回るのを防ぐ）。
 const FULL_STEAM_FLOOR := 0.4
 
-## ゴースト1枚あたりの無敵秒数。基準は開始後2秒間で、複数取得で線形に延長する
-## (2枚=4秒、3枚=6秒…)。無敵時間の知識をここに閉じ込め、画面(Battle)も
+## ゴースト1枚あたりのすり抜け秒数。基準は最初の衝突後2秒間で、複数取得で線形に
+## 延長する(2枚=4秒、3枚=6秒…)。すり抜け時間の知識をここに閉じ込め、画面(Battle)も
 ## シミュ(RunSim)も同じ値を参照する。
 const GHOST_SECONDS_PER_STACK := 2.0
 
@@ -102,8 +102,10 @@ static func all() -> Array[CustomPart]:
 		# 残機を5へ引き上げるレア札。コマの性能ではなくコンティニュー回数
 		# (GameState.continues_left、初期3)を底上げする。下げはしない(apply_partのmaxi)。
 		CustomPart.make_set_lives(8, "PART_SPARE_CORE", CustomPart.Rarity.RARE, 5),
-		# ゴースト: 開始後GHOST_SECONDS_PER_STACK秒だけ敵との衝突を無効化する。
-		# ステータスは変えず、重ねて取るほど無敵時間が伸びる(線形)。
+		# ゴースト: 最初の衝突の直後からGHOST_SECONDS_PER_STACK秒だけ敵との衝突を
+		# 無効化する(ヒット&ラン)。開始直後を無敵にする旧仕様は自分の初撃まで
+		# 消していて、狙って撃つほど損をする自傷札だった。
+		# ステータスは変えず、重ねて取るほどすり抜け時間が伸びる(線形)。
 		CustomPart.make_ghost(9, "PART_GHOST", CustomPart.Rarity.COMMON,
 			GHOST_SECONDS_PER_STACK),
 	]
@@ -116,7 +118,7 @@ static func by_id(id: int) -> CustomPart:
 	return null
 
 
-## 取得済みIDから、ゴーストの合計無敵秒数(=枚数×1枚あたり秒数)を出す。
+## 取得済みIDから、ゴーストの合計すり抜け秒数(=枚数×1枚あたり秒数)を出す。
 ## 戦闘のghost_durationはこれで決まる。ゴースト以外のIDは無視する。
 static func total_ghost_seconds(ids: Array[int]) -> float:
 	var total := 0.0

@@ -36,7 +36,7 @@ class State:
 static func resolve(request: BattleRequest) -> BattleResult:
 	var result := BattleResult.new()
 	result.time_step = request.time_step
-	# 再生側の無敵表示のため、入力の無敵時間を結果へ写す。
+	# 再生側のすり抜け表示のため、入力のすり抜け時間を結果へ写す。
 	result.ghost_duration = request.ghost_duration
 
 	var player := State.new(request.player)
@@ -54,6 +54,10 @@ static func resolve(request: BattleRequest) -> BattleResult:
 	var max_steps := int(request.max_duration / dt)
 	var t := 0.0
 
+	# ゴースト窓の開始時刻。最初のプレイヤー対敵の衝突が起きるまではINF=窓なし。
+	# 窓が開いたらresult.ghost_startにも写す(再生側のすり抜け表示用)。
+	var ghost_start := INF
+
 	for step in max_steps:
 		# 現在の状態を記録してから進める。1フレーム目が初期状態になる。
 		result.player_frames.append(_snapshot(player))
@@ -68,12 +72,21 @@ static func resolve(request: BattleRequest) -> BattleResult:
 		# (i<j)。落ちたコマ(alive=false)は削り合いに参加しない。順序を固定するのは
 		# 3体以上が同時に重なったときの逐次解決が順序依存になるため。決定性と
 		# シリアライズ往復の一致がこの順序に依存する。
-		# ゴーストの無敵時間中(t < ghost_duration)はプレイヤーと敵の衝突を解かない。
-		# tはステップ開始時刻(1ステップ目は0)。ghost_duration=0なら常に当たる。
-		# 敵同士の衝突(下)は無敵の対象外なのでそのまま解く。
+		# ゴーストは「最初の衝突の直後からghost_duration秒間」プレイヤーと敵の
+		# 衝突を解かない(ヒット&ラン: 狙った初撃は必ず通り、直後の報復ラッシュを
+		# すり抜けて離脱できる)。開始直後を無敵にする旧仕様は自分の初撃まで消して
+		# いて、狙って撃つほど損をする自傷札だった。窓を開いた当のステップ
+		# (t == ghost_start)は塞がない=同一ステップの他の敵との衝突は解く。
+		# ghost_duration=0なら窓は開かず常に当たる。敵同士の衝突(下)は対象外。
 		for i in enemies.size():
-			if player.alive and enemies[i].alive and t >= request.ghost_duration:
-				_resolve_disc_collision(player, enemies[i], request, t, result)
+			if (
+				player.alive and enemies[i].alive
+				and not ghost_blocks(t, ghost_start, request.ghost_duration)
+			):
+				if _resolve_disc_collision(player, enemies[i], request, t, result):
+					if request.ghost_duration > 0.0 and ghost_start == INF:
+						ghost_start = t
+						result.ghost_start = t
 		for i in enemies.size():
 			for j in range(i + 1, enemies.size()):
 				if enemies[i].alive and enemies[j].alive:
@@ -138,16 +151,25 @@ static func _integrate(
 	s.velocity += accel * dt
 
 
+## ゴースト窓が時刻tの衝突を塞ぐか。窓は「最初の衝突(ghost_start)の直後」から
+## duration秒間。窓が開く前(ghost_start=INF)は塞がない。境界のt == ghost_startは
+## 窓を開いた衝突自身のステップなので塞がない(同一ステップの他の敵にも当たる)。
+## 純粋関数としてテストが直接叩く。
+static func ghost_blocks(t: float, ghost_start: float, duration: float) -> bool:
+	return t > ghost_start and t < ghost_start + duration
+
+
 ## 2体の衝突を解く。プレイヤー対敵にも敵同士にも使う汎用の対処理。
 ## 接触点は共有の result.impacts に追記する(再生側は誰同士かを区別しない)。
+## 実際に衝突を解いたら真を返す(ゴースト窓の開始検出に使う。敵同士は無視してよい)。
 static func _resolve_disc_collision(
 	a: State, b: State, req: BattleRequest, t: float, result: BattleResult
-) -> void:
+) -> bool:
 	if not SpinnerPhysics.is_colliding(
 		a.position, a.stats.radius, a.velocity,
 		b.position, b.stats.radius, b.velocity
 	):
-		return
+		return false
 
 	# 接触点。半径で重み付けした中点＝実際に触れている場所。
 	var contact := (
@@ -190,6 +212,7 @@ static func _resolve_disc_collision(
 
 	a.rps = maxf(a.rps - a_drain, 0.0)
 	b.rps = maxf(b.rps - b_drain, 0.0)
+	return true
 
 
 ## 1体ぶんの土俵まわり: 壁・障害物・自然減衰。体ごとに独立しており、
