@@ -82,7 +82,11 @@ static func all() -> Array[CustomPart]:
 		# だったが、半径は重ねるほど自然減衰と被弾面積が増え、計測では3枚で
 		# 勝率-19.7pt(aim_spawn/Lv3)と実質デバフだった。半径の伸びを抑え、
 		# 「大きくなれば重くもなる」ぶんを質量に回して確実に正の札にする。
-		CustomPart.make_stats(2, "PART_GIANT_GROWTH", CustomPart.Rarity.COMMON, [
+		#
+		# COMMONからRAREへ移した。罠札が正の札になったぶん、COMMON(高頻度)のままだと
+		# 毎回のように出てラン全体が楽になりすぎた(クリア率14.7%→93.7%)。効果量では
+		# なく出現頻度で戻す。
+		CustomPart.make_stats(2, "PART_GIANT_GROWTH", CustomPart.Rarity.RARE, [
 			StatOp.mult(CustomPart.Stat.RADIUS, 1.1, RADIUS_CAP),
 			StatOp.mult(CustomPart.Stat.MASS, 1.2, MASS_CAP),
 		] as Array[StatOp], "PART_NOTE_GIANT_GROWTH"),
