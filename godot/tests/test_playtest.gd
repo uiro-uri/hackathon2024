@@ -278,11 +278,21 @@ func _test_run_sim_forced_pick(check: Callable) -> void:
 ## 残機(コンティニュー)の模擬。敗北しても残機がある限り再挑戦し、残機が尽きて
 ## 初めて力尽きる。実プレイのGameStateと同じ。SPARE_COREを取らないFORCED(質量)で
 ## 回すので残機の底上げは起きず、初期3から消費した分だけ減る。
+## 発射方針は2つ回す。interceptだけだとバランス次第で30シード全部クリアしてしまい、
+## 死亡分岐を一度も通らないことがある(実際、札の調整でそうなった)。腕の悪い
+## random発射なら確実に力尽きるランが混ざるので、分岐の検証がバランスに依存しない。
 func _test_run_sim_continues(check: Callable) -> void:
+	var died_checked := false
+	for policy in [LaunchPolicy.Kind.INTERCEPT, LaunchPolicy.Kind.RANDOM]:
+		died_checked = _check_continues_for(check, policy) or died_checked
+	check.call(died_checked, "run_sim: 残機の死亡分岐を少なくとも1回検証した")
+
+
+func _check_continues_for(check: Callable, policy: LaunchPolicy.Kind) -> bool:
 	var died_checked := false
 	for seed_value in range(0, 30):
 		var r := RunSim.play_one(
-			seed_value, LaunchPolicy.Kind.INTERCEPT, RunSim.RewardPolicy.FORCED, null, 3
+			seed_value, policy, RunSim.RewardPolicy.FORCED, null, 3
 		)
 		# SPARE_COREを取らないので残機は増えない: 消費+残 == 初期。
 		check.call(
@@ -302,7 +312,7 @@ func _test_run_sim_continues(check: Callable) -> void:
 					seed_value, r["final_continues"]
 				]
 			)
-	check.call(died_checked, "run_sim: 残機の死亡分岐を少なくとも1回検証した")
+	return died_checked
 
 
 ## SPARE_CORE(id8)を取ると残機が5へ底上げされる(GameState.apply_partのmaxiと同じ)。

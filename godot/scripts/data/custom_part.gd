@@ -7,6 +7,8 @@ extends Resource
 ## kwargsで生やした属性(mass_value/mass_calculation)の有無でディスパッチして
 ## いたが、実際の7個はすべて「あるステータスに定数を掛ける」だけなので、
 ## 対象ステータスと倍率のデータに畳んだ。
+## その後「質量に定数を足す」札と「直径と質量を両方上げる」札が要ったので、
+## 1組の(stat, multiplier)から StatOp(掛ける・足す・上限)の配列へ広げた。
 ##
 ## 説明文は数値から自動生成する。プロトタイプでは説明文が手書きで、
 ## 実際の値と2回食い違っていた:
@@ -17,10 +19,12 @@ extends Resource
 
 enum Rarity { COMMON, RARE }
 
-enum Stat { MASS, RADIUS, FRICTION, RESTITUTION, RPS }
+## ステータスの種類。実体は StatOp 側にある(CustomPartがStatOpの配列を持つので、
+## 逆向きに参照すると相互参照になる)。CustomPart.Stat.MASS の書き方を残すための別名。
+const Stat := StatOp.Stat
 
-## 効果の種類。既存の札は全部STAT_MULTIPLY（あるステータスに定数を掛ける）。
-## STAT_MULTIPLY以外は非ステータス効果で、SpinnerStatsのどの値にも乗らない:
+## 効果の種類。既存の札はほとんどSTATS（ステータスをStatOpの並びで書き換える）。
+## STATS以外は非ステータス効果で、SpinnerStatsのどの値にも乗らない:
 ##  - SET_LIVES: コマの性能ではなくランの残機(GameState.continues_left)を触る。
 ##    適用はGameState.apply_partが担う（CustomPartは純ResourceのままGameStateを参照しない）。
 ##  - GHOST: 最初の衝突の直後から一定時間だけ敵との衝突を無効化する時間効果
@@ -33,7 +37,7 @@ enum Stat { MASS, RADIUS, FRICTION, RESTITUTION, RPS }
 ## RAGE: 反発(restitution)を multiplier 倍(cap上限)にしつつ、壁でのrps喪失を
 ## 減らす(wall_keepを wall_keep_step ぶん加算、上限1.0)複合効果。反発upは相手を
 ## 壁へ押し込む攻撃用途として残しつつ、wall_keepで自分の壁ダメージを減らす。
-enum Effect { STAT_MULTIPLY, SET_LIVES, GHOST, MOMENTUM, RAGE }
+enum Effect { STATS, SET_LIVES, GHOST, MOMENTUM, RAGE }
 
 ## レアカードの見た目。報酬選択とマップの取得済み一覧で同じ強調を使うため、
 ## パーツ側に置いて共有する。地が明るい金色なので文字は暗くしないと読めない。
@@ -67,16 +71,25 @@ const _STAT_NAMES := {
 
 @export var rarity: Rarity = Rarity.COMMON
 
-## 効果の種類。デフォルトはステータス倍率。
-@export var effect: Effect = Effect.STAT_MULTIPLY
+## 効果の種類。デフォルトはステータス書き換え。
+@export var effect: Effect = Effect.STATS
 
-## どのステータスに掛けるか。effectがSTAT_MULTIPLYのときだけ意味を持つ。
-@export var stat: Stat = Stat.MASS
+## ステータスへの操作の並び。effectがSTATSのときだけ意味を持つ。
+## 1枚で複数のステータスを触る札(ジャイアントグロース)は複数個入る。
+@export var ops: Array[StatOp] = []
 
-## 掛ける倍率。1未満なら下げる効果。
+## 効果注記を差し替える翻訳キー。空なら操作ごとの注記(PART_NOTE_<ステータス>_<向き>)を
+## 並べる。複数ステータスを触る札は注記も複数行になり、しかも似た文が重なって読みにくい
+## (直径と質量はどちらも「衝突で削られる回転が減る」)。そういう札だけ1行にまとめる。
+## 差し替えるのは注記だけで、数値は変わらず生成されたものが出る(説明が嘘にならない)。
+@export var note_key: String = ""
+
+## 掛ける倍率。MOMENTUM(摩擦と回転減衰)とRAGE(反発)が自分の倍率として使う。
+## STATSの札は使わない(倍率はopsが持つ)。
 @export var multiplier: float = 1.0
 
-## 上限。0以下なら上限なし。
+## MOMENTUMではspin_decayの下限、RAGEでは反発の上限。
+## STATSの札は使わない(上限はopsが持つ)。
 @export var cap: float = 0.0
 
 ## SET_LIVESで引き上げる残機。他の札では0（GameState.apply_partのmaxiが無害になる）。
@@ -93,21 +106,29 @@ const _STAT_NAMES := {
 @export var wall_keep_max: float = 1.0
 
 
+## 1つのステータスに倍率を掛けるだけの札を作る。大半の札はこれ。
 static func make(
-	id_: int, title_key_: String, rarity_: Rarity, stat_: Stat,
+	id_: int, title_key_: String, rarity_: Rarity, stat_: StatOp.Stat,
 	multiplier_: float, cap_: float = 0.0
+) -> CustomPart:
+	return make_stats(id_, title_key_, rarity_, [StatOp.mult(stat_, multiplier_, cap_)])
+
+
+## ステータス操作を並べて札を作る。加算や、複数ステータスを触る複合札用。
+static func make_stats(
+	id_: int, title_key_: String, rarity_: Rarity, ops_: Array[StatOp],
+	note_key_: String = ""
 ) -> CustomPart:
 	var part := CustomPart.new()
 	part.id = id_
 	part.title_key = title_key_
 	part.rarity = rarity_
-	part.stat = stat_
-	part.multiplier = multiplier_
-	part.cap = cap_
+	part.ops = ops_
+	part.note_key = note_key_
 	return part
 
 
-## 残機を引き上げる札を作る。ステータスには触らないので stat/multiplier/cap は既定のまま。
+## 残機を引き上げる札を作る。ステータスには触らないので ops は空のまま。
 static func make_set_lives(
 	id_: int, title_key_: String, rarity_: Rarity, lives_: int
 ) -> CustomPart:
@@ -191,12 +212,10 @@ func apply_to(stats: SpinnerStats) -> void:
 		return
 	# 非ステータスの札(残機・ゴースト)はコマの性能を一切いじらない。残機はGameState.
 	# apply_partが、ゴーストのすり抜け時間はBattleが処理する。
-	if effect != Effect.STAT_MULTIPLY:
+	if effect != Effect.STATS:
 		return
-	var value := _read(stats) * multiplier
-	if cap > 0.0:
-		value = minf(value, cap)
-	_write(stats, value)
+	for op in ops:
+		op.apply(stats)
 
 
 ## レアカードの金色スタイルボックス。報酬選択とマップ一覧で共有する。
@@ -228,21 +247,47 @@ func describe() -> String:
 	# 怒りの反射は反発倍率と壁rps保持の複合。両方を埋めた専用の説明を返す。
 	if effect == Effect.RAGE:
 		return tr("PART_EFFECT_RAGE").format([_trim(multiplier), _trim(cap)])
-	var text: String = tr(_STAT_KEYS[stat]).format([_trim(multiplier)])
-	if cap > 0.0:
-		text += tr("PART_EFFECT_CAP").format([_trim(cap)])
-	var note := _effect_note()
-	if note != "":
+	# 複数ステータスを触る札は「直径 ×1.1 / 質量 ×1.2」のように並べる。
+	var parts := PackedStringArray()
+	for op in ops:
+		parts.append(_describe_op(op))
+	var text := " / ".join(parts)
+	# 注釈は操作ごとに1行。同じ文面(同じステータスを2回触る等)は重ねない。
+	# note_keyがある札は、その1行でまとめて置き換える。
+	var notes := PackedStringArray()
+	if note_key != "":
+		notes.append(tr(note_key))
+	else:
+		for op in ops:
+			var note := _effect_note(op)
+			if note != "" and not notes.has(note):
+				notes.append(note)
+	for note in notes:
 		text += "\n" + note
 	return text
 
 
-## 倍率の向きから実際の挙動の説明を引く。倍率が1（効果なし）なら空。
-func _effect_note() -> String:
-	if is_equal_approx(multiplier, 1.0):
+## 操作1つぶんの表記。「質量 ×1.5（上限 8）」「質量 +0.75（上限 8）」。
+func _describe_op(op: StatOp) -> String:
+	var key: String = _STAT_KEYS[op.stat]
+	var text: String
+	# 加算の札は倍率を持たない(掛けて足す形だが、実際は片方しか使わない)。
+	# 「×1」と出しても意味がないので、加算があればそちらを表記する。
+	if not is_zero_approx(op.addend):
+		text = tr(key + "_ADD").format([_trim(op.addend)])
+	else:
+		text = tr(key).format([_trim(op.multiplier)])
+	if op.cap > 0.0:
+		text += tr("PART_EFFECT_CAP").format([_trim(op.cap)])
+	return text
+
+
+## 操作の向きから実際の挙動の説明を引く。何も変えない操作なら空。
+func _effect_note(op: StatOp) -> String:
+	if not op.changes():
 		return ""
-	var direction := "UP" if multiplier > 1.0 else "DOWN"
-	return tr("PART_NOTE_%s_%s" % [_STAT_NAMES[stat], direction])
+	var direction := "UP" if op.raises() else "DOWN"
+	return tr("PART_NOTE_%s_%s" % [_STAT_NAMES[op.stat], direction])
 
 
 ## 1.20 -> "1.2", 2.00 -> "2" のように余分な0を落とす。
@@ -253,31 +298,3 @@ static func _trim(value: float) -> String:
 	if text.ends_with("."):
 		text = text.substr(0, text.length() - 1)
 	return text
-
-
-func _read(stats: SpinnerStats) -> float:
-	match stat:
-		Stat.MASS:
-			return stats.mass
-		Stat.RADIUS:
-			return stats.radius
-		Stat.FRICTION:
-			return stats.friction
-		Stat.RESTITUTION:
-			return stats.restitution
-		_:
-			return stats.rps
-
-
-func _write(stats: SpinnerStats, value: float) -> void:
-	match stat:
-		Stat.MASS:
-			stats.mass = value
-		Stat.RADIUS:
-			stats.radius = value
-		Stat.FRICTION:
-			stats.friction = value
-		Stat.RESTITUTION:
-			stats.restitution = value
-		_:
-			stats.rps = value

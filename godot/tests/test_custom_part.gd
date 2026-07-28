@@ -72,6 +72,43 @@ func _test_apply(check: Callable) -> void:
 	part.apply_to(s)
 	check.call(is_equal_approx(s.mass, 6.0), "パーツ: 重ねがけで積み上がる (%.3f)" % s.mass)
 
+	# 定数加算の札は重ねても線形(倍率のような複利にならない)。オーバーウェイトを
+	# 定数化した狙いそのものなので、掛け算との差が出る形でピンする。
+	s = _stats()
+	var adder := CustomPart.make_stats(0, "T", CustomPart.Rarity.COMMON, [
+		StatOp.add(CustomPart.Stat.MASS, 0.75),
+	] as Array[StatOp])
+	adder.apply_to(s)
+	check.call(is_equal_approx(s.mass, 2.25), "パーツ: 加算1枚で+0.75 (%.3f)" % s.mass)
+	adder.apply_to(s)
+	adder.apply_to(s)
+	check.call(is_equal_approx(s.mass, 3.75), "パーツ: 加算は重ねても線形 (%.3f)" % s.mass)
+
+	# 1枚で複数のステータスを触る複合札。片方だけ効いて終わっていないこと。
+	s = _stats()
+	CustomPart.make_stats(0, "T", CustomPart.Rarity.COMMON, [
+		StatOp.mult(CustomPart.Stat.RADIUS, 1.1),
+		StatOp.mult(CustomPart.Stat.MASS, 1.2),
+	] as Array[StatOp]).apply_to(s)
+	check.call(is_equal_approx(s.radius, 0.55), "パーツ: 複合札で直径が上がる (%.3f)" % s.radius)
+	check.call(is_equal_approx(s.mass, 1.8), "パーツ: 複合札で質量も上がる (%.3f)" % s.mass)
+
+	# カタログの実データでも両方動くこと(定義側の取り違えを拾う)。
+	s = _stats()
+	CustomPartCatalog.by_id(2).apply_to(s)
+	check.call(
+		s.radius > 0.5 and s.mass > 1.5,
+		"パーツ: ジャイアントグロースは直径と質量の両方を上げる (r=%.3f m=%.3f)" % [
+			s.radius, s.mass
+		]
+	)
+	s = _stats()
+	CustomPartCatalog.by_id(3).apply_to(s)
+	check.call(
+		is_equal_approx(s.mass, 2.25),
+		"パーツ: オーバーウェイトは質量に定数を足す (%.3f)" % s.mass
+	)
+
 
 func _test_caps(check: Callable) -> void:
 	# 上限を超えない
@@ -97,18 +134,30 @@ func _test_caps(check: Callable) -> void:
 	var spin: CustomPart = CustomPartCatalog.by_id(7)
 	spin.apply_to(s)
 	check.call(
-		is_equal_approx(s.rps, 10.0 * spin.multiplier),
+		is_equal_approx(s.rps, 10.0 * spin.ops[0].multiplier),
 		"パーツ: 上限未満なら倍率どおり (%.2f)" % s.rps
+	)
+
+	# 上限は加算にも効く。倍率だけクランプして加算を素通しにすると、定数札を
+	# 重ねただけで上限を突き抜ける。
+	s = _stats()
+	for i in 20:
+		CustomPartCatalog.by_id(3).apply_to(s)
+	check.call(
+		is_equal_approx(s.mass, CustomPartCatalog.MASS_CAP),
+		"パーツ: 定数加算も上限%.0fで止まる (%.2f)" % [CustomPartCatalog.MASS_CAP, s.mass]
 	)
 
 	# 報酬は全部プラスなので、取るほど強くなる一方。上限がないと
 	# アリーナをコマが埋め尽くすので、伸びるステータスには全部上限がある。
+	# 倍率でも加算でも上げるなら上限が要る。
 	for part in CustomPartCatalog.all():
-		if part.multiplier > 1.0:
-			check.call(
-				part.cap > 0.0,
-				"パーツ%d(%s): 強化札には上限がある" % [part.id, part.title_key]
-			)
+		for op in part.ops:
+			if op.raises():
+				check.call(
+					op.cap > 0.0,
+					"パーツ%d(%s): 強化札には上限がある" % [part.id, part.title_key]
+				)
 
 
 ## 説明文が実際の効果と食い違わないこと。
@@ -163,19 +212,29 @@ func _test_description_matches_effect(check: Callable) -> void:
 			)
 			continue
 
-		# 説明に書かれた倍率が、実際に適用される倍率と一致すること
-		var shown := CustomPart._trim(part.multiplier)
-		check.call(
-			text.contains(shown),
-			"パーツ%d(%s): 説明の倍率が実際と一致 (%s に %s)" % [part.id, part.title_key, text, shown]
-		)
-
-		# 上限があるなら説明にも出ていること
-		if part.cap > 0.0:
+		# 説明に書かれた数値が、実際に適用される値と一致すること。
+		# 複合札は操作ごとに1つずつ、全部出ていること(片方だけ書いて残りを
+		# 黙っていると説明が嘘になる)。
+		for op in part.ops:
+			var shown := CustomPart._trim(op.addend if not is_zero_approx(op.addend) else op.multiplier)
 			check.call(
-				text.contains(CustomPart._trim(part.cap)),
-				"パーツ%d: 説明に上限が出ている (%s)" % [part.id, text]
+				text.contains(shown),
+				"パーツ%d(%s): 説明の数値が実際と一致 (%s に %s)" % [
+					part.id, part.title_key, text, shown
+				]
 			)
+			# 加算の札は「×」ではなく「+」で見せる(×1と出ると意味不明になる)。
+			if not is_zero_approx(op.addend):
+				check.call(
+					text.contains("+" + shown),
+					"パーツ%d(%s): 加算は+表記で出る (%s)" % [part.id, part.title_key, text]
+				)
+			# 上限があるなら説明にも出ていること
+			if op.cap > 0.0:
+				check.call(
+					text.contains(CustomPart._trim(op.cap)),
+					"パーツ%d: 説明に上限が出ている (%s)" % [part.id, text]
+				)
 
 		# 倍率だけでは挙動が読めないので、実際の効果を一言添えている。
 		# キーが素のまま残っている＝訳がない、を弾く。現行パーツは全部
@@ -447,11 +506,14 @@ func _test_set_lives(check: Callable) -> void:
 	check.call(part.effect == CustomPart.Effect.SET_LIVES, "残機札: 効果種別がSET_LIVES")
 	check.call(part.lives == 5, "残機札: 引き上げ先が5 (%d)" % part.lives)
 
-	# コマの性能には一切触らない。倍率/上限を非1に汚してもSET_LIVESなら書き込まない
-	# ＝apply_toのガードが効いていることの検証（倍率が既定1.0だと恒等で素通りしてしまう）。
+	# コマの性能には一切触らない。ステータス操作を無理やり生やしてもSET_LIVESなら
+	# 書き込まない＝apply_toのガードが効いていることの検証（opsが空だと何もしないのが
+	# 当たり前になってしまい、ガードの有無を判別できない）。
 	var tampered := CustomPart.make_set_lives(8, "PART_SPARE_CORE", CustomPart.Rarity.RARE, 5)
-	tampered.multiplier = 2.0
-	tampered.cap = 99.0
+	tampered.ops = [
+		StatOp.mult(CustomPart.Stat.MASS, 2.0),
+		StatOp.add(CustomPart.Stat.RADIUS, 1.0),
+	] as Array[StatOp]
 	var s := _stats()
 	var base := _stats()
 	tampered.apply_to(s)
