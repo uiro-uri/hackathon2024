@@ -78,13 +78,25 @@ const GHOST_SECONDS_PER_STACK := 2.0
 ## 一方なので、上限がないとアリーナ(10x10)をコマが埋め尽くす。
 static func all() -> Array[CustomPart]:
 	return [
-		CustomPart.make(2, "PART_GIANT_GROWTH", CustomPart.Rarity.COMMON,
-			CustomPart.Stat.RADIUS, 1.25, RADIUS_CAP),
-		# 質量×1.5。改修前は最強札(×1.6)だったので微減。ボスは自滅(spin_decay=0.6)を
-		# 抑えたぶん削りで倒す設計になっており、greedyの主火力である質量を削るとボスは
-		# 硬くなる。uiroの判断でボス難化を許容(残機で緩和)し、札の突出を抑える方を採った。
-		CustomPart.make(3, "PART_OVERENCUMBERED", CustomPart.Rarity.RARE,
-			CustomPart.Stat.MASS, 1.5, MASS_CAP),
+		# ジャイアントグロース: 直径×1.1 + 質量×1.2 の複合札。以前は直径×1.25だけ
+		# だったが、半径は重ねるほど自然減衰と被弾面積が増え、計測では3枚で
+		# 勝率-19.7pt(aim_spawn/Lv3)と実質デバフだった。半径の伸びを抑え、
+		# 「大きくなれば重くもなる」ぶんを質量に回して確実に正の札にする。
+		#
+		# COMMONからRAREへ移した。罠札が正の札になったぶん、COMMON(高頻度)のままだと
+		# 毎回のように出てラン全体が楽になりすぎた(クリア率14.7%→93.7%)。効果量では
+		# なく出現頻度で戻す。
+		CustomPart.make_stats(2, "PART_GIANT_GROWTH", CustomPart.Rarity.RARE, [
+			StatOp.mult(CustomPart.Stat.RADIUS, 1.1, RADIUS_CAP),
+			StatOp.mult(CustomPart.Stat.MASS, 1.2, MASS_CAP),
+		] as Array[StatOp], "PART_NOTE_GIANT_GROWTH"),
+		# オーバーウェイト: 質量+0.75。以前は質量×1.5で、重ねると複利で伸びる
+		# (1.5→2.25→3.38→5.06)ぶん突出した最強札だった(計測でLv3を3枚+75.8pt)。
+		# 定数加算にすると1枚目の効きは×1.5と全く同じまま(1.5→2.25)、2枚目以降が
+		# 線形になる(→3.0→3.75)。1枚目の魅力を落とさずに重ねがけの爆発だけ潰す。
+		CustomPart.make_stats(3, "PART_OVERENCUMBERED", CustomPart.Rarity.RARE, [
+			StatOp.add(CustomPart.Stat.MASS, 0.75, MASS_CAP),
+		] as Array[StatOp]),
 		# Full Steam Ahead: 勢いを保つ札。摩擦(速度減衰)だけを下げていた頃は
 		# 戦績がほぼ0の死に札だった(摩擦は勝敗にほとんど効かない)。名前どおり
 		# 「勢いを保つ」よう、摩擦と回転減衰率(自然にRPSが落ちる速さ)の両方を

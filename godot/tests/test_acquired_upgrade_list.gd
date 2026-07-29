@@ -84,9 +84,18 @@ func _test_rare_row_is_highlighted(check: Callable) -> void:
 
 
 func _test_common_row_is_plain(check: Callable) -> void:
-	# id2 (Giant Growth) はコモン。レア強調は付かない。
+	# コモン札にはレア強調が付かない。どの札がコモンかはバランス調整で入れ替わる
+	# (ジャイアントグロースはコモン→レアへ移した)ので、idを直に書かずカタログから拾う。
+	var common_id := -1
+	for part in CustomPartCatalog.all():
+		if part.rarity == CustomPart.Rarity.COMMON:
+			common_id = part.id
+			break
+	check.call(common_id != -1, "コモンの札がカタログに存在する")
+	if common_id == -1:
+		return
 	var list := VBoxContainer.new()
-	var ids: Array[int] = [2]
+	var ids: Array[int] = [common_id]
 	AcquiredUpgradeList.populate(list, ids)
 	if list.get_child_count() == 1:
 		var row := list.get_child(0)

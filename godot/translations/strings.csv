@@ -70,6 +70,7 @@ PART_EFFECT_RADIUS,Diameter ×{0},直径 ×{0}
 PART_EFFECT_FRICTION,Friction ×{0},摩擦 ×{0}
 PART_EFFECT_RESTITUTION,Bounce ×{0},反発 ×{0}
 PART_EFFECT_RPS,Spin ×{0},回転 ×{0}
+PART_EFFECT_MASS_ADD,Mass +{0},質量 +{0}
 PART_EFFECT_CAP," (max {0})",（上限 {0}）
 PART_EFFECT_SET_LIVES,Lives set to {0},残機を{0}にする
 PART_EFFECT_GHOST,After your first clash: pass through enemies for {0}s,最初の衝突後{0}秒間 敵をすり抜ける
@@ -79,6 +80,7 @@ PART_NOTE_MASS_UP,Takes less spin loss on hits and knocks foes back harder,衝�
 PART_NOTE_MASS_DOWN,Takes more spin loss on hits and knocks foes back weaker,衝突で削られる回転が増え、相手を弾きにくい
 PART_NOTE_RADIUS_UP,"Takes less spin loss per hit, but natural decay rises and it's easier to hit","衝突で削られる回転は減るが、自然減衰が上がり被弾しやすい"
 PART_NOTE_RADIUS_DOWN,"Natural decay drops and it's harder to hit, but takes more spin loss per hit","自然減衰が下がり被弾しにくくなるが、衝突で削られる回転は増える"
+PART_NOTE_GIANT_GROWTH,"Takes less spin loss and knocks foes back harder, but natural decay rises","衝突で削られる回転が減り相手をより弾くが、自然減衰は上がる"
 PART_NOTE_FRICTION_UP,Slows down faster and stops sooner,移動の減速が上がり止まりやすい
 PART_NOTE_FRICTION_DOWN,Slows down less and keeps moving,移動の減速が下がり走り続ける
 PART_NOTE_RESTITUTION_UP,Bounces off walls and foes harder,壁や衝突での跳ね返りが強くなる
